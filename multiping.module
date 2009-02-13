@@ -1,0 +1,502 @@
+<?php
+// $Id: multiping.module,v 1.4.2.2 2008/08/04 16:07:26 skyr Exp $
+
+define("_multiping_when_active", 1);
+define("_multiping_when_taxonomy", 2);
+define("_multiping_when_nodetype", 4);
+define("_multiping_when_frontpage", 8);
+
+
+function _multiping_get_settings($defaults = FALSE) {
+  static $settings = NULL;
+  static $default_settings = array(
+  'global' => array(
+    'time_between_pings' => '10',
+    'pingatonce' => false,
+    ),
+  );
+  // Defaults requested?
+  if ($defaults) {
+    return $default_settings;
+  }
+  // merge settings from variable table with defaults
+  if ($settings == NULL) {
+    $settings = variable_get('multiping', array());
+    foreach ($default_settings as $key => $value) {
+      if (is_array($value)) {
+        $settings[$key] = isset($settings[$key]) ? array_merge($value, $settings[$key]) : $value;
+      }
+      else if (!isset($settings[$key])) {
+        $settings[$key] = $value;
+      }
+    }
+  }
+  // Return result
+  return $settings;
+}
+
+
+/**
+ * Implementation of hook_menu().
+ */
+function multiping_menu() {
+  $items = array();
+  $items['admin/settings/multiping'] = array( 
+    'title' => 'Ping services',
+    'description' => 'Configure when to ping which sites',
+    'page callback' => 'multiping_admin',
+    'page arguments' => array(),
+    'access callback' => 'user_access',
+    'access arguments' => array('admin pings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/settings/multiping/pingall'] = array(
+    'title' => 'Ping all',
+    'page callback' => 'multiping_pingall',
+    'access arguments' => array('admin pings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/settings/multiping/new'] = array(
+    'title' => 'New ping service',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('multiping_edit_service', '0'),
+    'access arguments' => array('admin pings'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/settings/multiping/%/edit'] = array(
+    'title' => 'Edit ping service',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('multiping_edit_service', 3),
+    'access arguments' => array('admin pings'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/settings/multiping/%/ping'] = array(
+    'title' => 'Ping service',
+    'page arguments' => array(3),
+    'page callback' => 'multiping_ping',
+    'access arguments' => array('admin pings'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/settings/multiping/%/delete'] = array(
+    'title' => 'Delete ping service',
+    'page arguments' => array(3),
+    'page callback' => 'multiping_delete',
+    'access arguments' => array('admin pings'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+  * Implementation of hook_perm().
+  */
+function multiping_perm() {
+  return array('admin pings');
+}
+
+function _multiping_doping($pingservice) {
+  global $base_url;
+
+  // Assemble site name
+  $name=variable_get('site_name', '');
+  $slogan=variable_get('site_slogan', '');
+  if (strlen($slogan)>0)
+    $name="$name - $slogan";
+  // Determine rss url
+  if (module_exists('taxonomy') 
+    && ($pingservice->whentoping & _multiping_when_taxonomy)
+    && count($pingservice->voc)>0 && $pingservice->submitmainrss==0) {
+    // Taxonomy module exists, "ping only for nodes with taxonomy",
+    // Some taxonomy elements are actually selected, "main rss" override is off
+    $voc=unserialize($pingservice->voc);
+    $rss_url="$base_url/taxonomy/term/".implode("+", $voc)."/0/feed";
+  } 
+  else {
+    $rss_url="$base_url/rss.xml";
+  }
+  // Ping! Check service method
+  if ($pingservice->method && strlen($pingservice->method)>0) {
+    //watchdog("Multiping","XML ping: ".$pingservice->url);
+    $result = xmlrpc($pingservice->url, $pingservice->method, $name, $base_url, $rss_url);
+  } 
+  else {
+    $pingurl=strtr($pingservice->url, array(
+      "%name" => urlencode($name),
+      "%url" => urlencode("$base_url/"),
+      "%rss" => urlencode($rss_url))
+    );
+    $result = drupal_http_request($pingurl);
+    //watchdog("Multiping","Non-XML ping: ".$pingurl." Result: ".$result->code." Data: '".$result->data."'");
+    if ($result->code==200) {
+      if (strpos($result->data, "1")==0)
+        $result = TRUE; else
+        $result = FALSE;
+    } 
+    else $result = FALSE;
+  }
+  // On success: Update timestamp
+  if ($result)
+    db_query("UPDATE {multiping} SET lastping=%d WHERE id=%d", time(), $pingservice->id);
+  return $result;
+}
+
+
+function _multiping_checkpings() {
+  $settings=_multiping_get_settings();
+  $result = db_query('SELECT * FROM {multiping}');
+  while ($row = db_fetch_object($result)) {
+    // Ping service active?
+    if (! ($row->whentoping & _multiping_when_active)) {
+      continue;
+    }
+    // Default query: Published nodes only
+    $sql_from="{node} n";
+    $sql_where="n.status>0";
+    // Taxonomy selection
+    if (module_exists('taxonomy') && ($row->whentoping & _multiping_when_taxonomy)) {
+      // Find most recent date for nodes with given taxonomy
+      $voc=unserialize($row->voc);
+      $sql_from="$sql_from, {term_node} t";
+      $sql_where="$sql_where AND t.nid=n.nid AND (t.tid=" . implode(" OR t.tid=", $voc) . ")";
+    }
+    // Nodetype selection
+    if ($row->whentoping & _multiping_when_nodetype) {
+      $nodetype=unserialize($row->nodetypes);
+      $sql_where="$sql_where AND (n.type='".implode("' OR n.type='", $nodetype)."')";
+    }
+    // Promoted to front page?
+    if ($row->whentoping & _multiping_when_frontpage) {
+      $sql_where="$sql_where AND n.promote>0";
+    }
+    //watchdog("debug","Multiping ".$row->name.": SELECT * FROM ".$sql_from." WHERE ".$sql_where);
+    // Get max creation and modification time
+    $max_created = 0;
+    $res_time = db_query('SELECT max(created) FROM {'.$sql_from.'} WHERE '.$sql_where);
+    $row_time = db_fetch_array($res_time);
+    if ($row_time) $max_created=$row_time['max(created)'];
+    $max_changed = 0;
+    $res_time = db_query('SELECT max(changed) FROM {'.$sql_from.'} WHERE '.$sql_where);
+    $row_time = db_fetch_array($res_time);
+    if ($row_time) $max_changed=$row_time['max(changed)'];
+    if ($max_created>$max_changed)
+      $lastmodified = $max_created; else
+      $lastmodified = $max_changed;
+    //watchdog("Multiping","lastmodified=".$lastmodified);
+    // Check wether to ping service
+    if ($lastmodified>$row->lastping) {
+      // With every failure, exponentially increase retry time
+      $retry_time=$settings['global']['time_between_pings']*pow(1.5,$row->failcount);
+      if ($retry_time>24*60)  // Retry at least once a day
+	$retry_time=24*60;
+      if ($row->lastping+60*$retry_time>time()) {
+	// Timeout not yet reached
+	watchdog("Multiping", "Timeout for service @name not yet reached", array('@name' => $row->name));
+      } elseif (_multiping_doping($row)) {
+	watchdog("Multiping", 'Successfully notified %site.', array('%site' => $row->name));
+	db_query("UPDATE {multiping} SET failcount='0' WHERE id=%d",$row->id);
+      } else {
+	watchdog("Multiping", 'Failed to notify %site.', array('%site' => $row->name), WATCHDOG_WARNING);
+	db_query("UPDATE {multiping} SET failcount='%d' WHERE id=%d",
+	  ($row->failcount)+1,$row->id);
+      }
+    }
+  }
+}
+
+
+/**
+  * Implementation of hook_cron().
+  * Check if sites need to be pinged.
+  */
+function multiping_cron() {
+  watchdog("Multiping","Cron run",array(),WATCHDOG_DEBUG);
+  _multiping_checkpings();
+}
+
+
+/**
+  * Implementation of hook_nodeapi().
+  * If pingatonce is set, check pings.
+  */
+function multiping_nodeapi(&$node, $op, $a3=NULL, $a4=NULL) {
+  //drupal_set_message("op=".$op);
+  //watchdog("Multiping","op=$op");
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      $settings=_multiping_get_settings();
+      if ($settings['global']['pingatonce'])
+	_multiping_checkpings();
+      break;
+  }
+}
+
+
+function multiping_edit_service($form_state, $id) {
+  $edit=array();
+  $edit['id']=$id;
+  $edit['name']='';
+  $edit['url']='http://';
+  $edit['method']='weblogUpdates.ping';
+  $edit['when_active']=1;
+  $edit['when_taxonomy']=0;
+  $edit['when_nodetype']=0;
+  $edit['when_frontpage']=0;
+  $edit['submitmainrss']=1;
+  $edit['voc']='';
+  $edit['nodetype']='';
+  if ($id>0) {
+    $result = db_query('SELECT * FROM {multiping} WHERE id=%d',$id);
+    $row = db_fetch_object($result);
+    if ($row) {
+      $edit['name']=$row->name;
+      $edit['url']=$row->url;
+      $edit['method']=$row->method;
+      $edit['when_active']=(($row->whentoping & _multiping_when_active) > 0);
+      $edit['when_taxonomy']=(($row->whentoping & _multiping_when_taxonomy) > 0);
+      $edit['when_nodetype']=(($row->whentoping & _multiping_when_nodetype) > 0);
+      $edit['when_frontpage']=(($row->whentoping & _multiping_when_frontpage) > 0);
+      $edit['submitmainrss']=$row->submitmainrss;
+      $edit['voc']=unserialize($row->voc);
+      $edit['nodetype']=unserialize($row->nodetypes);
+    } else {
+      watchdog("Multiping","Query for id=@id returned 0 rows", array('@id' => $id), WATCHDOG_WARNING);
+      $id=0;
+    }
+  }
+  $form=array();
+  $form['id'] = array(
+    '#type' => 'hidden',
+    '#value' => $id,
+  );
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Site name'),
+    '#default_value' => $edit['name'],
+    '#size' => 50,
+    '#maxlength' => 100,
+    '#description' => t('Displayed name of the site to be pinged'),
+    '#attributes' => NULL,
+    '#required' => TRUE,
+  );
+  $form['url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('URL'),
+    '#default_value' => $edit['url'],
+    '#size' => 50,
+    '#maxlength' => 255,
+    '#description' => t('URL of the ping service. '.
+      'The following replacements will be done:<br />'.
+      '%name - Site name (and slogan)<br />'.
+      '%url - Site base URL<br />'.
+      '%rss - URL of RSS feed'),
+    '#attributes' => NULL,
+    '#required' => TRUE,
+  );
+  /* Todo: Submit which RSS feed? Whole feed or a feed containing only
+     items of the selected taxonomies? */
+  $form['method'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Method name'),
+    '#default_value' => $edit['method'],
+    '#size' => 50,
+    '#maxlength' => 50,
+    '#description' => t('If this is an XML service: Name of the method to be called'),
+    '#attributes' => NULL,
+    '#required' => FALSE,
+  );
+  $options = array('1' => t('Always ping'), '0' => t('Don\'t ping'));
+  if (module_exists('taxonomy')) {
+   $options['2']=t('Ping only for nodes with the following taxonomy');
+  }
+  $form['when_active'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Service active'),
+    '#default_value' => $edit['when_active'],
+    '#description' => t('Activate or deactivate this service'),
+  );
+  if (module_exists('taxonomy')) {
+    $form['when_taxonomy'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Ping only for selected taxonomies'),
+      '#default_value' => $edit['when_taxonomy'],
+      '#description' => t('Send a ping only if the node belongs to one of the follwing categories'),
+    );
+    $form['voc'] = array(
+      '#type' => 'select',
+      '#title' => t('Taxonomy terms when to ping'),
+      '#default_value' => $edit['voc'],
+      '#options' => taxonomy_form_all(),
+      '#multiple' => true,
+      '#description' => t('Ping this service if any of the taxonomy terms selected above matches the respective node'),
+    );
+    $form['submitmainrss'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Send main RSS feed in ping'),
+      '#default_value' => $edit['submitmainrss'],
+      '#description' => t('If checked, the main RSS feed is sent; otherwise, an RSS feed containing only articles from the selected taxonomies is used.'),
+    );
+  }
+  $form['when_nodetype'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Ping only for selected node types'),
+    '#default_value' => $edit['when_nodetype'],
+    '#description' => t('Send a ping only if the node is one of the following node types'),
+  );
+  $form['nodetype'] = array(
+    '#type' => 'select',
+    '#title' => t('Node types when to ping'),
+    '#default_value' => $edit['nodetype'],
+    '#options' => node_get_types('names'),
+    '#multiple' => true,
+    '#description' => t('Ping this service if any of the node types selected above matches the respective node'),
+  );
+  $form['when_frontpage'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Ping only for nodes promoted to front page'),
+    '#default_value' => $edit['when_frontpage'],
+    '#description' => t('Send a ping only if the node is promoted to the front page'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+
+function multiping_edit_service_submit($form_id, &$form_state) {
+  $edit = $form_state['values']; // TODO: Is this ok? http://drupal.org/node/144132#process-params
+  if ($edit['form_id']=='multiping_edit_service') {
+    $edit['id'] = ($edit['id'] && is_numeric($edit['id'])) ? $edit['id'] : 0;
+    $edit['name'] = ($edit['name']) ? $edit['name'] : '(no name)';
+    $edit['url'] = ($edit['url']) ? $edit['url'] : 'http://localhost/';
+    $edit['method'] = ($edit['method']) ? $edit['method'] : '';
+    $edit['submitmainrss'] = ($edit['submitmainrss']) ? $edit['submitmainrss'] : 0; // Not present if false!
+    if ($edit['submitmainrss']>0) $edit['submitmainrss']=1;
+    $whentoping=$edit['when_active']*_multiping_when_active+
+      $edit['when_taxonomy']*_multiping_when_taxonomy+
+      $edit['when_nodetype']*_multiping_when_nodetype+
+      $edit['when_frontpage']*_multiping_when_frontpage;
+    if ($edit['id']==0) {
+      db_query("INSERT INTO {multiping} (name,url,method,whentoping,submitmainrss,voc,nodetypes) ".
+	"VALUES ('%s','%s','%s','%s','%s','%s','%s')",$edit['name'],$edit['url'],
+	$edit['method'],$whentoping,$edit['submitmainrss'],
+	serialize($edit['voc']),serialize($edit['nodetype']));
+    } else {
+      db_query("UPDATE {multiping} SET name='%s',url='%s',method='%s',whentoping='%s',submitmainrss='%s',voc='%s',nodetypes='%s' ".
+	"WHERE id=%d",$edit['name'],$edit['url'],$edit['method'],$whentoping,$edit['submitmainrss'],serialize($edit['voc']),serialize($edit['nodetype']),$edit['id']);
+    }
+  }
+  drupal_set_message("Changes saved.");
+  #drupal_goto("admin/settings/multiping");
+  $form_state['redirect']="admin/settings/multiping";
+}
+
+
+function multiping_settings() {
+  $form=array();
+  $settings=_multiping_get_settings();
+  $form['global']['time_between_pings'] = array(
+     '#type' => 'textfield',
+     '#title' => t('Time between pings'),
+     '#default_value' => $settings['global']['time_between_pings'],
+     '#size' => 8,
+     '#maxlength' => 4,
+     '#description' => t('Minimum number of minutes between two pings to same site'),
+     '#attributes' => NULL,
+     '#required' => TRUE,
+  );
+  $form['pingatonce'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Ping after post'),
+    '#default_value' => $settings['global']['pingatonce'],
+    '#description' => t('Ping directly after post/update (instead of pinging during the cron job runs)'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+
+function multiping_settings_submit($form_id, &$form_state) {
+  $edit = $form_state['values']; // TODO: Is this ok? http://drupal.org/node/144132#process-params
+  if ($edit['form_id']=='multiping_settings') {
+    $settings=_multiping_get_settings();
+    $settings['global']['time_between_pings']=$edit['time_between_pings'];
+    $settings['global']['pingatonce']=$edit['pingatonce'];
+    variable_set('multiping', $settings);
+  }
+  drupal_set_message("Changes saved.");
+  #drupal_goto("admin/settings/multiping");
+  $form_state['redirect']="admin/settings/multiping";
+}
+
+
+/**
+  * Menu callback: Admin page
+  */
+function multiping_admin() {
+  $output = "";
+  // General settings
+  $output .= drupal_get_form('multiping_settings', $form);
+  // Table with services
+  $header = array(t('Name'), t('Last update'), array('data' => t('Operations'), 'colspan' => '3'));
+  $result = db_query('SELECT * FROM {multiping} ORDER BY id');
+  while ($row = db_fetch_object($result)) {
+    if ($row->lastping==0)
+      $lastping=t('never'); else
+      $lastping=format_date($row->lastping,'small');
+    $rows[] = array(
+      $row->name,
+      $lastping,
+      l(t('edit'),"admin/settings/multiping/".$row->id."/edit"),
+      l(t('ping'),"admin/settings/multiping/".$row->id."/ping"),
+      l(t('delete'),"admin/settings/multiping/".$row->id."/delete")
+    );
+  }
+  $output .= theme('table',$header,$rows);
+  // Links
+  $output .= "<p>".l(t('Add service'),"admin/settings/multiping/new")."</p>";
+  return $output;
+}
+
+
+function multiping_pingall() {
+  $output = "<p>".t("Running all pings...")."</p>";
+  $header = array(t('Name'), t('Status'));
+  $result = db_query('SELECT * FROM {multiping} ORDER BY id');
+  while ($row = db_fetch_object($result)) {
+    $rows[] = array($row->name,_multiping_doping($row) ? t('Ok') : t('Failed'));
+  }
+  $output .= theme('table',$header,$rows);
+  $output .= "<p>".l(t('Return'),"admin/settings/multiping")."</p>";
+  return $output;
+}
+
+
+function multiping_ping($id) {
+  watchdog("Multiping","ping @id", array('@id' => $id));
+  if (!is_numeric($id)) {
+    drupal_not_found();
+    return;
+  }
+  drupal_set_message("Not yet implemented","warning");
+  drupal_goto("admin/settings/multiping");
+}
+
+
+function multiping_delete($id) {
+  watchdog("Multiping","delete @id", array('@id' => $id));
+  if (!is_numeric($id)) {
+    drupal_not_found();
+    return;
+  }
+  db_query("DELETE FROM {multiping} WHERE id=%d",intval($id));
+  drupal_set_message("Service deleted.");
+  drupal_goto("admin/settings/multiping");
+}
+
+?>

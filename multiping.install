@@ -1,0 +1,64 @@
+<?php
+
+function multiping_schema() {
+  $schema['multiping'] = array(
+    'fields' => array(
+      'id' => array('type'=>'serial', 'unsigned'=>TRUE, 'not null'=>TRUE),
+      'name' => array('type'=>'varchar', 'length'=>100, 'not null'=>TRUE),
+      'url' => array('type'=>'varchar', 'length'=>255, 'not null'=>TRUE),
+      'method' => array('type'=>'varchar', 'length'=>50),
+      'lastping' => array('type'=>'int', 'unsigned'=>TRUE, 'default'=>0),
+      'whentoping' => array('type'=>'int', 'unsigned'=>TRUE, 'default'=>1),
+      'submitmainrss' => array('type'=>'int', 'unsigned'=>TRUE, 'default'=>0),
+      'voc' => array('type'=>'text', 'length'=>4000),
+      'nodetypes' => array('type'=>'text', 'length'=>4000),
+      'failcount' => array('type'=>'int', 'unsigned'=>TRUE, 'default'=>0),
+    ),
+    'primary key' => array('id'),
+  );
+  return $schema;
+}
+
+function multiping_install() {
+  drupal_install_schema('multiping');
+  db_query("INSERT INTO {multiping} (id,name,url,method,lastping,whentoping,submitmainrss,voc,nodetypes,failcount) VALUES (1, 'Ping-o-matic', 'http://rpc.pingomatic.com', 'weblogUpdates.ping', 0, 9, 1, 'N;', 'N;', 0);");
+}
+
+function multiping_uninstall() {
+  drupal_uninstall_schema('multiping');
+}
+
+/*
+function multiping_update_1() {
+  $result = db_query('SELECT * FROM {multiping} LIMIT 1');
+  if (db_num_rows($result) == 0) {
+    $items[] = update_sql('DROP TABLE {multiping}');
+    $items[] = _multiping_create_table1();
+  } else {
+    $row = db_fetch_array($result);
+    if (!isset($row['whentoping'])) {
+      $items[] = _system_update_utf8(array('multiping'));
+      $items[] = update_sql("ALTER TABLE `multiping` ADD `whentoping` INT NOT NULL DEFAULT '1' AFTER `lastping`");
+      $items[] = update_sql("ALTER TABLE `multiping` ADD `submitmainrss` INT NOT NULL DEFAULT '0' AFTER `whentoping`");
+      $items[] = update_sql("ALTER TABLE `multiping` ADD `voc` text AFTER `submitmainrss`");
+      $items[] = update_sql("ALTER TABLE `multiping` ADD `failcount` INT default 0 AFTER `voc`");
+    }
+  }
+  return $items;
+}
+
+function multiping_update_2() {
+  $items=multiping_update_1();
+  $result = db_query('SELECT * FROM {multiping} LIMIT 1');
+  $row = db_fetch_array($result);
+  if (!isset($row['nodetypes'])) {
+    // Add new column
+    $items[] = update_sql("ALTER TABLE `multiping` ADD `nodetypes` text AFTER `voc`");
+    // New semantics of field whentoping
+    $items[] = update_sql("UPDATE `multiping` SET whentoping=3 WHERE whentoping=2");
+  }
+  return $items;
+}
+*/
+
+?>

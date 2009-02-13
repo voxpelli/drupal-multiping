@@ -1,0 +1,253 @@
+# $Id: ja.po,v 1.1.2.2 2008/11/13 04:35:14 imagine Exp $
+#
+# Japanese translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  multiping.module,v 1.4.2.2 2008/08/04 16:07:26 skyr
+#  multiping.info,v 1.2 2008/03/31 21:53:46 skyr
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2008-11-13 11:44+0900\n"
+"PO-Revision-Date: 2008-11-13 12:36+0900\n"
+"Last-Translator: PineRay <matsudaterutaka@gmail.com>\n"
+"Language-Team: Japanese <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: multiping.module:274
+msgid "Site name"
+msgstr "サイト名"
+
+#: multiping.module:278
+msgid "Displayed name of the site to be pinged"
+msgstr "Ping送信先サイトの表示名"
+
+#: multiping.module:284
+msgid "URL"
+msgstr "URL"
+
+#: multiping.module:300
+msgid "Method name"
+msgstr "メソッド名"
+
+#: multiping.module:304
+msgid "If this is an XML service: Name of the method to be called"
+msgstr "XMLサービスの場合: 呼び出されるメソッド名"
+
+#: multiping.module:308
+msgid "Always ping"
+msgstr "常にPing送信"
+
+#: multiping.module:308
+msgid "Don't ping"
+msgstr "Ping送信しない"
+
+#: multiping.module:310
+msgid "Ping only for nodes with the following taxonomy"
+msgstr "以下のタクソノミーに含まれるノードでのみPing送信"
+
+#: multiping.module:314
+msgid "Service active"
+msgstr "サービス有効"
+
+#: multiping.module:316
+msgid "Activate or deactivate this service"
+msgstr "サービスを有効あるいは無効にします"
+
+#: multiping.module:321
+msgid "Ping only for selected taxonomies"
+msgstr "選択したタクソノミーのみPing送信"
+
+#: multiping.module:323
+msgid "Send a ping only if the node belongs to one of the follwing categories"
+msgstr "以下のカテゴリにノードが含まれている場合にだけPingを送信します。"
+
+#: multiping.module:327
+msgid "Taxonomy terms when to ping"
+msgstr "Pingを送信するタクソノミーターム"
+
+#: multiping.module:331
+msgid "Ping this service if any of the taxonomy terms selected above matches the respective node"
+msgstr "上記で選択したタクソノミータームにノードが含まれていればPingを送信します。"
+
+#: multiping.module:335
+msgid "Send main RSS feed in ping"
+msgstr "メインのRSSフィードを送信"
+
+#: multiping.module:337
+msgid "If checked, the main RSS feed is sent; otherwise, an RSS feed containing only articles from the selected taxonomies is used."
+msgstr "チェックがあれば、メインのRSSフィードを送信します; チェックが無ければ、選択したタクソノミーの記事だけを含んだRSSフィードを送信します。"
+
+#: multiping.module:342
+msgid "Ping only for selected node types"
+msgstr "選択したコンテンツタイプのみPing送信"
+
+#: multiping.module:344
+msgid "Send a ping only if the node is one of the following node types"
+msgstr "以下のコンテンツタイプにノードが含まれている場合にだけPingを送信します。"
+
+#: multiping.module:348
+msgid "Node types when to ping"
+msgstr "Pingを送信するコンテンツタイプ"
+
+#: multiping.module:352
+msgid "Ping this service if any of the node types selected above matches the respective node"
+msgstr "上記で選択したコンテンツタイプにノードが含まれていればPingを送信します。"
+
+#: multiping.module:356
+msgid "Ping only for nodes promoted to front page"
+msgstr "フロントページに固定されたノードのみPing送信"
+
+#: multiping.module:358
+msgid "Send a ping only if the node is promoted to the front page"
+msgstr "ノードがフロントページに固定されている場合にだけPingを送信します。"
+
+#: multiping.module:362;418
+msgid "Submit"
+msgstr "送信"
+
+#: multiping.module:402
+msgid "Time between pings"
+msgstr "Ping送信間隔"
+
+#: multiping.module:406
+msgid "Minimum number of minutes between two pings to same site"
+msgstr "Pingを同じサイトに再び送信するまでの最小分数"
+
+#: multiping.module:412
+msgid "Ping after post"
+msgstr "投稿時にPing送信"
+
+#: multiping.module:414
+msgid "Ping directly after post/update (instead of pinging during the cron job runs)"
+msgstr "投稿あるいは更新すると、その時点でPingを送信します。（cronジョブによるPing送信は行いません）"
+
+#: multiping.module:446;469
+msgid "Name"
+msgstr "名前"
+
+#: multiping.module:446
+msgid "Last update"
+msgstr "前回の更新"
+
+#: multiping.module:446
+msgid "Operations"
+msgstr "操作"
+
+#: multiping.module:450
+msgid "never"
+msgstr "N/A"
+
+#: multiping.module:455
+msgid "edit"
+msgstr "編集"
+
+#: multiping.module:456
+msgid "ping"
+msgstr "ping"
+
+#: multiping.module:457
+msgid "delete"
+msgstr "削除"
+
+#: multiping.module:462
+msgid "Add service"
+msgstr "サービスを追加"
+
+#: multiping.module:468
+msgid "Running all pings..."
+msgstr "すべてのPingを送信しています ..."
+
+#: multiping.module:469
+msgid "Status"
+msgstr "状態"
+
+#: multiping.module:472
+msgid "Ok"
+msgstr "OK"
+
+#: multiping.module:472
+msgid "Failed"
+msgstr "失敗"
+
+#: multiping.module:475
+msgid "Return"
+msgstr "戻る"
+
+#: multiping.module:193;195;198;212;263;481;492
+#: multiping.info:0
+msgid "Multiping"
+msgstr "Ping送信設定"
+
+#: multiping.module:193
+msgid "Timeout for service @name not yet reached"
+msgstr "サービス @name のタイムアウトに未達"
+
+#: multiping.module:195
+msgid "Successfully notified %site."
+msgstr "%siteへの通知に成功しました。"
+
+#: multiping.module:198
+msgid "Failed to notify %site."
+msgstr "%siteへの通知に失敗しました。"
+
+#: multiping.module:212
+msgid "Cron run"
+msgstr "Cron実行"
+
+#: multiping.module:263
+msgid "Query for id=@id returned 0 rows"
+msgstr "id=@id のクエリの結果は 0 行"
+
+#: multiping.module:481
+msgid "ping @id"
+msgstr "@idをPing送信"
+
+#: multiping.module:492
+msgid "delete @id"
+msgstr "@idを削除"
+
+#: multiping.module:94
+msgid "admin pings"
+msgstr "Pingの管理"
+
+#: multiping.module:45
+msgid "Ping services"
+msgstr "Pingサービス"
+
+#: multiping.module:46
+msgid "Configure when to ping which sites"
+msgstr "どのサイトにいつPing送信するかを設定します"
+
+#: multiping.module:54
+msgid "Ping all"
+msgstr "すべてのPingを送信"
+
+#: multiping.module:60
+msgid "New ping service"
+msgstr "新しいPingサービス"
+
+#: multiping.module:67
+msgid "Edit ping service"
+msgstr "Pingサービスを編集"
+
+#: multiping.module:74
+msgid "Ping service"
+msgstr "Pingサービス"
+
+#: multiping.module:81
+msgid "Delete ping service"
+msgstr "Pingサービスを削除"
+
+#: multiping.module:0
+msgid "multiping"
+msgstr "multiping"
+
+#: multiping.info:0
+msgid "A ping module for pinging multiple sites"
+msgstr "複数のサイトへPingを送信できるpingモジュール"
+
