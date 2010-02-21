@@ -1,5 +1,5 @@
 <?php
-// $Id: multiping.module,v 1.4.2.2 2008/08/04 16:07:26 skyr Exp $
+// $Id: multiping.module,v 1.4.2.3 2010/02/21 11:24:52 voxpelli Exp $
 
 /**
  * @file
@@ -30,7 +30,7 @@ function _multiping_get_settings($defaults = FALSE) {
       if (is_array($value)) {
         $settings[$key] = isset($settings[$key]) ? array_merge($value, $settings[$key]) : $value;
       }
-      else if (!isset($settings[$key])) {
+      elseif (!isset($settings[$key])) {
         $settings[$key] = $value;
       }
     }
@@ -130,7 +130,7 @@ function _multiping_doping($pingservice) {
     ));
     $result = drupal_http_request($pingurl);
     //watchdog('Multiping',"Non-XML ping: ".$pingurl." Result: ".$result->code." Data: '".$result->data."'");
-    if ($result->code==200) {
+    if ($result->code == 200) {
       $result = (strpos($result->data, '1') == 0);
     }
     else {
@@ -191,13 +191,15 @@ function _multiping_checkpings() {
       $retry_time = $settings['global']['time_between_pings'] * pow(1.5, $row->failcount);
 
       // Retry at least once a day
-      if ($retry_time > 24 * 60) $retry_time = 24 * 60;
+      if ($retry_time > 24 * 60) {
+        $retry_time = 24 * 60;
+      }
 
       if ($row->lastping + 60 * $retry_time > time()) {
         // Timeout not yet reached
         watchdog('Multiping', "Timeout for service @name not yet reached", array('@name' => $row->name));
       }
-      else if (_multiping_doping($row)) {
+      elseif (_multiping_doping($row)) {
         watchdog('Multiping', 'Successfully notified %site.', array('%site' => $row->name));
         db_query("UPDATE {multiping} SET failcount = 0 WHERE id = %d", $row->id);
       }
@@ -226,7 +228,6 @@ function multiping_cron() {
  */
 function multiping_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   //drupal_set_message("op=".$op);
-  //watchdog('Multiping',"op=$op");
   switch ($op) {
     case 'insert':
     case 'update':

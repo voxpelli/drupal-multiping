@@ -1,5 +1,14 @@
 <?php
+// $Id: multiping.install,v 1.3.2.1 2010/02/21 11:24:52 voxpelli Exp $
 
+/**
+ * @file
+ * Install, update and uninstall functions for the Multiping module.
+ */
+
+/**
+ * Implementation of hook_schema().
+ */
 function multiping_schema() {
   $schema['multiping'] = array(
     'fields' => array(
@@ -59,24 +68,37 @@ function multiping_schema() {
   return $schema;
 }
 
+/**
+ * Implementation of hook_install().
+ */
 function multiping_install() {
   drupal_install_schema('multiping');
-
-  $pingomatic = (object) array(
-    'name' => 'Ping-o-matic',
-    'url' => 'http://rpc.pingomatic.com',
-    'method' => 'weblogUpdates.ping',
-    'lastping' => 0,
-    'whentoping' => 9,
-    'submitmainrss' => 1,
-    'voc' => 'N;',
-    'nodetypes' => 'N;',
-    'failcount' => 0,
-  );
-
-  drupal_write_record('multiping', $pingomatic);
 }
 
+/**
+ * Implementation of hook_enable().
+ */
+function multiping_enable() {
+  // If the multiping table is empty then add a row, just to get the user started.
+  $rows = (int)db_result(db_query("SELECT count(*) FROM {multiping}"));
+  if ($rows == 0) {
+    drupal_get_schema('multiping', TRUE); // Need to force the schema to be reloaded. See http://drupal.org/node/200931
+    $pingomatic = (object) array(
+      'name' => 'Ping-o-matic',
+      'url' => 'http://rpc.pingomatic.com',
+      'method' => 'weblogUpdates.ping',
+      'whentoping' => 9, // why not the default?
+      'submitmainrss' => 1,
+      'voc' => 'N;', // what does this mean?
+      'nodetypes' => 'N;', // what does this mean?
+    );
+    drupal_write_record('multiping', $pingomatic);
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
 function multiping_uninstall() {
   drupal_uninstall_schema('multiping');
 }

@@ -5,10 +5,3 @@ core = 6.x
 ; version = VERSION
 version = 6.x-dev
 
-
-; Information added by drupal.org packaging script on 2008-11-13
-version = "6.x-1.x-dev"
-core = "6.x"
-project = "multiping"
-datestamp = "1226578121"
-
