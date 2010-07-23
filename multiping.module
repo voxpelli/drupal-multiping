@@ -522,7 +522,11 @@ function multiping_ping($id) {
     drupal_not_found();
     return;
   }
-  drupal_set_message(t('Not yet implemented'), 'warning');
+  $result = db_query('SELECT * FROM {multiping} WHERE id = '.$id);
+  $row = db_fetch_object($result);
+  $rows = array($row->name, _multiping_doping($row) ? t('Ok') : t('Failed'));
+  $msg_type = ($rows[1] == 'Failed') ? 'warning' : 'status';
+  drupal_set_message(t($rows[0].' ping '.strtolower($rows[1])), $msg_type);
   drupal_goto('admin/settings/multiping');
 }
 
