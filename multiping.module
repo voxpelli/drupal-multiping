@@ -54,12 +54,6 @@ function multiping_menu() {
     'access arguments' => array('admin pings'),
     'type' => MENU_NORMAL_ITEM,
   );
-  $items['admin/settings/multiping/pingall'] = array(
-    'title' => 'Ping all',
-    'page callback' => 'multiping_pingall',
-    'access arguments' => array('admin pings'),
-    'type' => MENU_NORMAL_ITEM,
-  );
   $items['admin/settings/multiping/new'] = array(
     'title' => 'New ping service',
     'page callback' => 'drupal_get_form',
@@ -503,23 +497,6 @@ function multiping_admin() {
   $output .= '<p>'. l(t('Add service'), 'admin/settings/multiping/new') .'</p>';
   return $output;
 }
-
-
-function multiping_pingall() {
-  $output = '<p>'. t("Running all pings...") .'</p>';
-  $header = array(
-    t('Name'),
-    t('Status'),
-  );
-  $result = db_query('SELECT * FROM {multiping} ORDER BY id');
-  while ($row = db_fetch_object($result)) {
-    $rows[] = array($row->name, _multiping_doping($row) ? t('Ok') : t('Failed'));
-  }
-  $output .= theme('table', $header, $rows);
-  $output .= '<p>'. l(t('Return'), 'admin/settings/multiping') .'</p>';
-  return $output;
-}
-
 
 function multiping_ping($id) {
   if (!is_numeric($id)) {
