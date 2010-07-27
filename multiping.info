@@ -1,4 +1,4 @@
-; $Id: multiping.info,v 1.2 2008/03/31 21:53:46 skyr Exp $
+; $Id: multiping.info,v 1.2.2.1 2010/07/27 19:01:04 voxpelli Exp $
 name = Multiping
 description = A ping module for pinging multiple sites
 core = 6.x
