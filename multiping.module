@@ -120,7 +120,12 @@ function _multiping_doping($pingservice) {
   // Ping! Check service method
   if ($pingservice->method && drupal_strlen($pingservice->method) > 0) {
     //watchdog('Multiping',"XML ping: ".$pingservice->url);
-    $result = xmlrpc($pingservice->url, $pingservice->method, $name, $base_url, $rss_url);
+    if ($pingservice->method == 'weblogUpdates.ping') {
+      $result = xmlrpc($pingservice->url, $pingservice->method, $name, $base_url);
+    }
+    else {
+      $result = xmlrpc($pingservice->url, $pingservice->method, $name, $base_url, $rss_url);
+    }
   }
   else {
     $pingurl = strtr($pingservice->url, array(
