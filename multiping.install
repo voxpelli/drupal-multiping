@@ -100,5 +100,26 @@ function multiping_enable() {
  * Implementation of hook_uninstall().
  */
 function multiping_uninstall() {
+  db_query("DELETE FROM {variable} WHERE name LIKE 'multiping_%'");
   drupal_uninstall_schema('multiping');
+}
+
+/**
+ * Implementation of hook_update_N().
+ */
+function multiping_update_6001() {
+  $ret = array();
+
+  $settings = variable_get('multiping', array());
+  if (!empty($settings['global'])) {
+    if (array_key_exists('time_between_pings', $settings['global'])) {
+      variable_set('multiping_time_between_pings', $settings['global']['time_between_pings']);
+    }
+    if (array_key_exists('pingatonce', $settings['global'])) {
+      variable_set('multiping_pingatonce', $settings['global']['pingatonce']);
+    }
+  }
+  variable_del('multiping');
+
+  return $ret;
 }
