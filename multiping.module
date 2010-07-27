@@ -517,17 +517,28 @@ function multiping_pingall() {
 
 
 function multiping_ping($id) {
-  watchdog('Multiping', 'ping @id', array('@id' => $id));
   if (!is_numeric($id)) {
     drupal_not_found();
-    return;
   }
-  $result = db_query('SELECT * FROM {multiping} WHERE id = '.$id);
-  $row = db_fetch_object($result);
-  $rows = array($row->name, _multiping_doping($row) ? t('Ok') : t('Failed'));
-  $msg_type = ($rows[1] == 'Failed') ? 'warning' : 'status';
-  drupal_set_message(t($rows[0].' ping '.strtolower($rows[1])), $msg_type);
-  drupal_goto('admin/settings/multiping');
+  else {
+    $result = db_fetch_object(db_query('SELECT * FROM {multiping} WHERE id = %d', $id));
+    if (!$result) {
+      drupal_not_found();
+    }
+    else {
+      $success = _multiping_doping($result);
+      if ($success) {
+        $message = t('%service pinged successfully.', array('%service' => $result->name));
+        $message_type = 'status';
+      }
+      else {
+        $message = t('Ping of %service failed.', array('%service' => $result->name));
+        $message_type = 'warning';
+      }
+      drupal_set_message($message, $message_type);
+      drupal_goto('admin/settings/multiping');
+    }
+  }
 }
 
 
