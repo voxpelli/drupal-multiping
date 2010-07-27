@@ -2,6 +2,3 @@
 name = Multiping
 description = A ping module for pinging multiple sites
 core = 6.x
-; version = VERSION
-version = 6.x-dev
-
