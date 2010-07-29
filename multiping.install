@@ -73,6 +73,7 @@ function multiping_schema() {
  */
 function multiping_install() {
   drupal_install_schema('multiping');
+  db_query("UPDATE {system} SET weight = 20 WHERE name = 'multiping' AND type = 'module'");
 }
 
 /**

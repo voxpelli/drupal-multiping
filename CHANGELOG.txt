@@ -1,5 +1,6 @@
 Multiping x.x-x.x, xxxx-xx-xx
 ------------------------------
+#371028 by jonathan1055, VoxPelli: Make Multiping run late on cron
 
 Multiping 6.x-1.0-beta1, 2010-07-27
 ------------------------------
